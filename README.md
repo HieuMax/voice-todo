@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Voice Todo
 
-## Getting Started
+Ứng dụng web (PWA) ghi công việc bằng giọng nói tiếng Việt. Nói tự nhiên, hệ thống
+nhận diện giọng nói ngay trên trình duyệt, tách thời gian nhắc và lưu vào danh sách.
 
-First, run the development server:
+## Tính năng
+
+- Nhận diện giọng nói tiếng Việt (`vi-VN`) bằng Web Speech API có sẵn của trình duyệt.
+- Bộ phân tích cú pháp (regex) tách giờ nhắc, ví dụ:
+  - "Nhắc tôi mua sữa lúc 8 giờ sáng" -> `Mua sữa` lúc `08:00`
+  - "Họp nhóm 19 giờ 30" -> `Họp nhóm` lúc `19:30`
+  - "Gọi mẹ tối nay 8 giờ" -> `Gọi mẹ` lúc `20:00`
+- Đánh dấu hoàn thành, xóa công việc, giao diện mobile-first.
+- PWA: cài lên màn hình chính (Add to Home Screen) và chạy toàn màn hình.
+- Lưu trữ trên Supabase; nếu chưa cấu hình, app tự chạy ở chế độ demo với
+  `localStorage`.
+
+## Chạy dự án
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> Lưu ý: Web Speech API cần **HTTPS** hoặc `localhost`. Trên iOS nên dùng Safari.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Cấu hình Supabase
 
-## Learn More
+1. Tạo project trên [Supabase](https://supabase.com) (Free tier).
+2. Mở SQL Editor và chạy:
 
-To learn more about Next.js, take a look at the following resources:
+```sql
+create table todos (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid,
+  task text not null,
+  reminder_time time,
+  is_completed boolean default false,
+  created_at timestamptz default now()
+);
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Sao chép `.env.example` thành `.env.local` và điền khóa:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
 
-## Deploy on Vercel
+Bỏ trống hai biến này nếu chỉ muốn chạy thử nhanh (chế độ demo).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Triển khai
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Đẩy mã nguồn lên GitHub, import vào Vercel và thêm hai biến môi trường
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` trong dashboard.
+
+## Cấu trúc
+
+```
+src/
+├── app/            # layout, page, globals.css
+├── components/     # TodoList, TodoItem, VoiceButton
+├── hooks/          # useSpeechRecognition
+├── lib/            # supabase, todos, todoParser
+└── types/          # todo, web-speech
+```
