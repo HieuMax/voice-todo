@@ -1,4 +1,4 @@
-# Voice Todo
+# Voice Todo - Open Source
 
 Ứng dụng web (PWA) ghi công việc bằng giọng nói tiếng Việt. Nói tự nhiên, hệ thống
 nhận diện giọng nói ngay trên trình duyệt, tách thời gian nhắc và lưu vào danh sách.
@@ -40,6 +40,18 @@ create table todos (
   is_completed boolean default false,
   created_at timestamptz default now()
 );
+
+-- Bảo mật: mỗi người chỉ truy cập được công việc của mình.
+alter table todos enable row level security;
+
+create policy "select own todos"
+  on todos for select using (auth.uid() = user_id);
+create policy "insert own todos"
+  on todos for insert with check (auth.uid() = user_id);
+create policy "update own todos"
+  on todos for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "delete own todos"
+  on todos for delete using (auth.uid() = user_id);
 ```
 
 3. Sao chép `.env.example` thành `.env.local` và điền khóa:
@@ -47,22 +59,44 @@ create table todos (
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-Bỏ trống hai biến này nếu chỉ muốn chạy thử nhanh (chế độ demo).
+- `NEXT_PUBLIC_*` là khóa công khai (an toàn để lộ trong trình duyệt).
+- `SUPABASE_SERVICE_ROLE_KEY` là khóa **bí mật**, chỉ dùng ở máy chủ để tạo tài
+  khoản (route `/api/auth/register`). **Không** thêm tiền tố `NEXT_PUBLIC_`.
+  Lấy tại Supabase → Project Settings → API → `service_role` key.
+
+Bỏ trống các biến này nếu chỉ muốn chạy thử nhanh (chế độ demo, không cần đăng nhập).
+
+> Vì sao cần `service_role`? Tài khoản dùng email nội bộ `ten@voicetodo.app`,
+> và Supabase chặn các domain rỗng/giả trên luồng đăng ký công khai
+> (`email_address_invalid`). Route đăng ký tạo người dùng qua Admin API
+> với `email_confirm: true`, nên không cần gửi email và đăng nhập được ngay.
+
+## Đăng nhập
+
+- Người dùng tự đăng ký bằng **tên đăng nhập** (3-20 ký tự: chữ thường, số, dấu `_`)
+  và **mật khẩu** (tối thiểu 6 ký tự).
+- Supabase Auth xử lý mã hóa mật khẩu và phiên đăng nhập an toàn
+  (mật khẩu không bao giờ được lưu ở dạng thô).
+- Row Level Security đảm bảo mỗi tài khoản chỉ đọc/ghi được công việc của chính mình.
+
+Tài khoản đã đăng ký không cần dùng email thật; không cần bật/tắt xác nhận email.
 
 ## Triển khai
 
-Đẩy mã nguồn lên GitHub, import vào Vercel và thêm hai biến môi trường
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` trong dashboard.
+Đẩy mã nguồn lên GitHub, import vào Vercel và thêm ba biến môi trường
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY` trong dashboard.
 
 ## Cấu trúc
 
 ```
 src/
-├── app/            # layout, page, globals.css
-├── components/     # TodoList, TodoItem, VoiceButton
-├── hooks/          # useSpeechRecognition
-├── lib/            # supabase, todos, todoParser
+├── app/            # layout, page, globals.css, api/auth/register
+├── components/     # LoginScreen, TodoApp, TodoList, TodoItem, VoiceButton
+├── hooks/          # useAuth, useSpeechRecognition
+├── lib/            # auth, username, supabase, supabaseAdmin, todos, todoParser
 └── types/          # todo, web-speech
 ```

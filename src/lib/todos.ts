@@ -20,23 +20,27 @@ function writeLocal(items: Todo[]): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
-export async function fetchTodos(): Promise<Todo[]> {
+export async function fetchTodos(userId: string | null): Promise<Todo[]> {
   if (!supabase) return readLocal();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("todos")
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (userId) query = query.eq("user_id", userId);
+
+  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
   return (data ?? []) as Todo[];
 }
 
-export async function createTodo(input: TodoInput): Promise<Todo> {
+export async function createTodo(input: TodoInput, userId: string | null): Promise<Todo> {
   if (!supabase) {
     const item: Todo = {
       id: crypto.randomUUID(),
-      user_id: null,
+      user_id: userId,
       task: input.task,
       reminder_time: input.reminder_time,
       is_completed: false,
@@ -48,7 +52,7 @@ export async function createTodo(input: TodoInput): Promise<Todo> {
 
   const { data, error } = await supabase
     .from("todos")
-    .insert([{ ...input, is_completed: false }])
+    .insert([{ ...input, is_completed: false, user_id: userId }])
     .select()
     .single();
 
