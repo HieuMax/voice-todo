@@ -1,0 +1,66 @@
+import { NextResponse } from "next/server";
+
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  normalizeUsername,
+  usernameToEmail,
+  validatePassword,
+  validateUsername,
+} from "@/lib/username";
+
+export async function POST(request: Request) {
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      {
+        error:
+          "Máy chủ chưa cấu hình SUPABASE_SERVICE_ROLE_KEY. Vui lòng thêm biến môi trường này.",
+      },
+      { status: 500 },
+    );
+  }
+
+  let body: { username?: unknown; password?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Yêu cầu không hợp lệ." }, { status: 400 });
+  }
+
+  const username = typeof body.username === "string" ? body.username : "";
+  const password = typeof body.password === "string" ? body.password : "";
+
+  const usernameError = validateUsername(username);
+  if (usernameError) {
+    return NextResponse.json({ error: usernameError }, { status: 400 });
+  }
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return NextResponse.json({ error: passwordError }, { status: 400 });
+  }
+
+  const normalized = normalizeUsername(username);
+
+  const { error } = await supabaseAdmin.auth.admin.createUser({
+    email: usernameToEmail(normalized),
+    password,
+    email_confirm: true,
+    user_metadata: { username: normalized },
+  });
+
+  if (error) {
+    const message = error.message.toLowerCase();
+    const alreadyExists =
+      message.includes("already") || message.includes("exists") || error.status === 422;
+
+    return NextResponse.json(
+      {
+        error: alreadyExists
+          ? "Tên đăng nhập này đã được sử dụng."
+          : "Không tạo được tài khoản. Vui lòng thử lại.",
+      },
+      { status: 400 },
+    );
+  }
+
+  return NextResponse.json({ ok: true });
+}
