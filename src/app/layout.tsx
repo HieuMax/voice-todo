@@ -4,6 +4,7 @@ import "./globals.css";
 
 import ClientErrors from "@/components/ClientErrors";
 import FeedbackWidget from "@/components/FeedbackWidget";
+import UpdateBanner from "@/components/UpdateBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         suppressHydrationWarning
       >
         {children}
+        <UpdateBanner />
         <FeedbackWidget />
         <ClientErrors />
       </body>

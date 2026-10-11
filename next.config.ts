@@ -1,3 +1,5 @@
+import { execSync } from "node:child_process";
+
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -16,6 +18,38 @@ function supabaseConnectSources(): string[] {
 
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 const turnstileEnabled = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+
+/**
+ * Per-build version shared by the client bundle and `/api/version`. The client
+ * compares the two to detect a new deployment and refresh an installed PWA.
+ *
+ * It must be identical for every compilation in a build, so it is derived from
+ * a stable source (the deploy's git SHA) rather than `Date.now()`, which would
+ * differ between the client and server bundles.
+ */
+function resolveAppVersion(): string {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_APP_VERSION ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.GIT_COMMIT_SHA ||
+    process.env.SOURCE_VERSION;
+  if (fromEnv) return fromEnv;
+
+  try {
+    const sha = execSync("git rev-parse --short HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+    if (sha) return sha;
+  } catch {
+    // Not a git checkout; fall through to the package version.
+  }
+
+  return process.env.npm_package_version || "dev";
+}
+
+const appVersion = resolveAppVersion();
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -58,6 +92,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
   poweredByHeader: false,
   cacheComponents: true,
   partialPrefetching: true,
