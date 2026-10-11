@@ -3,10 +3,16 @@
 interface VoiceButtonProps {
   isListening: boolean;
   isSupported: boolean;
+  isProcessing?: boolean;
   onClick: () => void;
 }
 
-export default function VoiceButton({ isListening, isSupported, onClick }: VoiceButtonProps) {
+export default function VoiceButton({
+  isListening,
+  isSupported,
+  isProcessing = false,
+  onClick,
+}: VoiceButtonProps) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <span
@@ -16,17 +22,19 @@ export default function VoiceButton({ isListening, isSupported, onClick }: Voice
       >
         {!isSupported
           ? "Thiết bị không hỗ trợ nhận diện giọng nói"
-          : isListening
-            ? "Đang nghe... nói công việc của bạn"
-            : "Nhấn để nói"}
+          : isProcessing
+            ? "Đang xử lý..."
+            : isListening
+              ? "Đang nghe... nói công việc của bạn"
+              : "Nhấn để nói"}
       </span>
 
       <button
         type="button"
-        aria-label="Bắt đầu ghi âm"
+        aria-label={isListening ? "Dừng ghi âm" : "Bắt đầu ghi âm"}
         aria-pressed={isListening}
         onClick={onClick}
-        disabled={!isSupported}
+        disabled={!isSupported || isProcessing}
         className={`pointer-events-auto relative flex h-[72px] w-[72px] items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none ${
           isListening
             ? "bg-rose-500 shadow-rose-500/40"

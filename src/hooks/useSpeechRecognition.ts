@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 interface UseSpeechRecognitionOptions {
   lang?: string;
-  onResult?: (transcript: string) => void;
+  onResult?: (transcript: string, alternatives: string[]) => void;
   onError?: (message: string) => void;
 }
 
@@ -35,9 +35,13 @@ function subscribe(): () => void {
   return () => {};
 }
 
+function getRecognitionConstructor(): SpeechRecognitionConstructor | undefined {
+  if (typeof window === "undefined") return undefined;
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition;
+}
+
 function getSnapshot(): boolean {
-  if (typeof window === "undefined") return false;
-  return Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition);
+  return Boolean(getRecognitionConstructor());
 }
 
 function getServerSnapshot(): boolean {
@@ -66,27 +70,91 @@ export function useSpeechRecognition(
     onErrorRef.current = onError;
   }, [onError]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  const dispose = useCallback((recognition: SpeechRecognition | null) => {
+    if (!recognition) return;
+    recognition.onstart = null;
+    recognition.onend = null;
+    recognition.onerror = null;
+    recognition.onresult = null;
+  }, []);
 
-    const RecognitionConstructor =
-      window.SpeechRecognition ?? window.webkitSpeechRecognition;
+  const stop = useCallback(() => {
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+    try {
+      recognition.stop();
+    } catch {
+      // stop() throws if the engine is not running; ignore.
+    }
+  }, []);
 
+  const start = useCallback(() => {
+    const RecognitionConstructor = getRecognitionConstructor();
     if (!RecognitionConstructor) return;
+
+    const previous = recognitionRef.current;
+    if (previous) {
+      dispose(previous);
+      try {
+        previous.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+
+    setError(null);
+    setTranscript("");
 
     const recognition = new RecognitionConstructor();
     recognition.lang = lang;
     recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 5;
+
+    let sessionAlternatives: string[] = [];
+    let hasDispatched = false;
+
+    const emit = (alternatives: string[]) => {
+      const cleaned = alternatives.map((alt) => alt.trim()).filter(Boolean);
+      if (cleaned.length === 0 || hasDispatched) return;
+      hasDispatched = true;
+      setTranscript(cleaned[0]);
+      onResultRef.current?.(cleaned[0], cleaned);
+    };
 
     recognition.onstart = () => {
       setIsListening(true);
       setError(null);
     };
 
-    recognition.onend = () => {
-      setIsListening(false);
+    recognition.onresult = (event) => {
+      const interim: string[] = [];
+      const finalResults: SpeechRecognitionResult[] = [];
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        if (result.isFinal) finalResults.push(result);
+        else {
+          const text = result[0]?.transcript ?? "";
+          if (text.trim()) interim[0] = `${interim[0] ?? ""}${text}`;
+        }
+      }
+
+      if (finalResults.length > 0) {
+        const altCount = Math.max(...finalResults.map((r) => r.length));
+        const alternatives: string[] = [];
+        for (let k = 0; k < altCount; k += 1) {
+          const combined = finalResults
+            .map((r) => r[k]?.transcript ?? "")
+            .join(" ")
+            .trim();
+          if (combined) alternatives.push(combined);
+        }
+        emit(alternatives);
+      } else if (interim[0]) {
+        sessionAlternatives = [interim[0]];
+      }
     };
 
     recognition.onerror = (event) => {
@@ -97,41 +165,38 @@ export function useSpeechRecognition(
       onErrorRef.current?.(message);
     };
 
-    recognition.onresult = (event) => {
-      const text = event.results[0]?.[0]?.transcript?.trim() ?? "";
-      if (!text) return;
-      setTranscript(text);
-      onResultRef.current?.(text);
+    recognition.onend = () => {
+      setIsListening(false);
+      // Safari (and sometimes Chrome) end the session without ever marking the
+      // result as final. Flush whatever interim hypothesis we captured.
+      if (!hasDispatched) emit(sessionAlternatives);
     };
 
     recognitionRef.current = recognition;
 
-    return () => {
-      recognition.onstart = null;
-      recognition.onend = null;
-      recognition.onerror = null;
-      recognition.onresult = null;
-      recognition.abort();
-      recognitionRef.current = null;
-    };
-  }, [lang]);
-
-  const start = useCallback(() => {
-    const recognition = recognitionRef.current;
-    if (!recognition) return;
-    setError(null);
     try {
       recognition.start();
     } catch {
       // start() throws if the engine is already running; ignore.
     }
-  }, []);
-
-  const stop = useCallback(() => {
-    recognitionRef.current?.stop();
-  }, []);
+  }, [dispose, lang]);
 
   const reset = useCallback(() => setTranscript(""), []);
+
+  useEffect(() => {
+    return () => {
+      const recognition = recognitionRef.current;
+      if (recognition) {
+        dispose(recognition);
+        try {
+          recognition.abort();
+        } catch {
+          // ignore
+        }
+        recognitionRef.current = null;
+      }
+    };
+  }, [dispose]);
 
   return { isSupported, isListening, error, transcript, start, stop, reset };
 }

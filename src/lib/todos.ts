@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { createId } from "@/lib/id";
 import type { Todo, TodoInput } from "@/types/todo";
 
 const STORAGE_KEY = "voice-todo:items";
@@ -39,7 +40,7 @@ export async function fetchTodos(userId: string | null): Promise<Todo[]> {
 export async function createTodo(input: TodoInput, userId: string | null): Promise<Todo> {
   if (!supabase) {
     const item: Todo = {
-      id: crypto.randomUUID(),
+      id: createId(),
       user_id: userId,
       task: input.task,
       reminder_time: input.reminder_time,
@@ -85,6 +86,20 @@ export async function deleteTodo(id: string): Promise<void> {
   }
 
   const { error } = await supabase.from("todos").delete().eq("id", id);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function clearTodos(userId: string | null): Promise<void> {
+  if (!supabase) {
+    writeLocal([]);
+    return;
+  }
+
+  let query = supabase.from("todos").delete();
+  if (userId) query = query.eq("user_id", userId);
+
+  const { error } = await query;
 
   if (error) throw new Error(error.message);
 }
