@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { getClientIp } from "@/lib/apiAuth";
+import { rateLimit } from "@/lib/rateLimit";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   normalizeUsername,
@@ -7,6 +9,10 @@ import {
   validatePassword,
   validateUsername,
 } from "@/lib/username";
+
+/** Max registrations allowed per IP within the window. */
+const RATE_LIMIT = 5;
+const RATE_WINDOW_MS = 10 * 60_000; // 10 minutes
 
 export async function POST(request: Request) {
   if (!supabaseAdmin) {
@@ -16,6 +22,15 @@ export async function POST(request: Request) {
           "Máy chủ chưa cấu hình SUPABASE_SERVICE_ROLE_KEY. Vui lòng thêm biến môi trường này.",
       },
       { status: 500 },
+    );
+  }
+
+  const ip = getClientIp(request);
+  const limit = rateLimit(`register:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Bạn đã tạo quá nhiều tài khoản. Vui lòng thử lại sau." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfter) } },
     );
   }
 

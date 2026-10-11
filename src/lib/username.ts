@@ -43,6 +43,6 @@ export function validateUsername(username: string): string | null {
 
 export function validatePassword(password: string): string | null {
   if (!password) return "Vui lòng nhập mật khẩu.";
-  if (password.length < 6) return "Mật khẩu cần ít nhất 6 ký tự.";
+  if (password.length < 8) return "Mật khẩu cần ít nhất 8 ký tự.";
   return null;
 }

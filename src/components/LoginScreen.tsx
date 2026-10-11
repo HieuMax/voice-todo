@@ -129,7 +129,7 @@ export default function LoginScreen() {
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Ít nhất 6 ký tự"
+              placeholder="Ít nhất 8 ký tự"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[15px] text-slate-800 outline-none transition placeholder:text-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </div>

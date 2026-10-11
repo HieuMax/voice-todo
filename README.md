@@ -77,7 +77,7 @@ Bỏ trống các biến này nếu chỉ muốn chạy thử nhanh (chế độ
 ## Đăng nhập
 
 - Người dùng tự đăng ký bằng **tên đăng nhập** (3-20 ký tự: chữ thường, số, dấu `_`)
-  và **mật khẩu** (tối thiểu 6 ký tự).
+  và **mật khẩu** (tối thiểu 8 ký tự).
 - Supabase Auth xử lý mã hóa mật khẩu và phiên đăng nhập an toàn
   (mật khẩu không bao giờ được lưu ở dạng thô).
 - Row Level Security đảm bảo mỗi tài khoản chỉ đọc/ghi được công việc của chính mình.

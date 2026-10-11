@@ -23,7 +23,7 @@ function translateAuthError(message: string): string {
     return "Tài khoản chưa được xác nhận. Hãy tắt xác nhận email trong Supabase.";
   }
   if (normalized.includes("password should be at least")) {
-    return "Mật khẩu cần ít nhất 6 ký tự.";
+    return "Mật khẩu cần ít nhất 8 ký tự.";
   }
   if (normalized.includes("rate limit") || normalized.includes("too many")) {
     return "Bạn thao tác quá nhanh, vui lòng thử lại sau.";

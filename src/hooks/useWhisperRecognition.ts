@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { supabase } from "@/lib/supabase";
+
 interface UseWhisperRecognitionOptions {
   enabled: boolean;
   lang?: string;
@@ -91,7 +93,19 @@ export function useWhisperRecognition({
         form.append("audio", blob, `audio.${extensionFor(mimeType)}`);
         form.append("lang", lang);
 
-        const response = await fetch("/api/transcribe", { method: "POST", body: form });
+        const headers: Record<string, string> = {};
+        const session = supabase
+          ? (await supabase.auth.getSession()).data.session
+          : null;
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
+
+        const response = await fetch("/api/transcribe", {
+          method: "POST",
+          body: form,
+          headers,
+        });
         const data = (await response.json().catch(() => ({}))) as {
           text?: string;
           error?: string;

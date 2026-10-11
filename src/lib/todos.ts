@@ -24,14 +24,14 @@ function writeLocal(items: Todo[]): void {
 export async function fetchTodos(userId: string | null): Promise<Todo[]> {
   if (!supabase) return readLocal();
 
-  let query = supabase
+  // Fail closed: with a backend configured we never query without a user scope.
+  if (!userId) return [];
+
+  const { data, error } = await supabase
     .from("todos")
     .select("*")
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
-
-  if (userId) query = query.eq("user_id", userId);
-
-  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
   return (data ?? []) as Todo[];
@@ -50,6 +50,9 @@ export async function createTodo(input: TodoInput, userId: string | null): Promi
     writeLocal([item, ...readLocal()]);
     return item;
   }
+
+  // Fail closed: with a backend configured, a user id is mandatory.
+  if (!userId) throw new Error("Chưa đăng nhập.");
 
   const { data, error } = await supabase
     .from("todos")
@@ -96,10 +99,10 @@ export async function clearTodos(userId: string | null): Promise<void> {
     return;
   }
 
-  let query = supabase.from("todos").delete();
-  if (userId) query = query.eq("user_id", userId);
+  // Fail closed: never issue an unscoped DELETE against the backend.
+  if (!userId) throw new Error("Chưa đăng nhập.");
 
-  const { error } = await query;
+  const { error } = await supabase.from("todos").delete().eq("user_id", userId);
 
   if (error) throw new Error(error.message);
 }
