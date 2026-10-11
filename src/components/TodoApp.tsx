@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import GuideWidget from "@/components/GuideWidget";
 import TaskListEditor, { type PendingTask } from "@/components/TaskListEditor";
 import TodoList from "@/components/TodoList";
 import TranscriptEditor from "@/components/TranscriptEditor";
@@ -10,6 +11,7 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useToday } from "@/hooks/useToday";
 import { useWhisperRecognition } from "@/hooks/useWhisperRecognition";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { MICROPHONE_BLOCKED_MESSAGE } from "@/lib/microphone";
 import { createId } from "@/lib/id";
 import {
   clearTodos,
@@ -57,10 +59,10 @@ export default function TodoApp({ userId, username, onSignOut }: TodoAppProps) {
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today = useToday();
 
-  const showNotice = useCallback((next: Notice) => {
+  const showNotice = useCallback((next: Notice, durationMs = 4000) => {
     setNotice(next);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    noticeTimer.current = setTimeout(() => setNotice(null), 4000);
+    noticeTimer.current = setTimeout(() => setNotice(null), durationMs);
   }, []);
 
   const markBusy = useCallback((id: string, busy: boolean) => {
@@ -172,7 +174,10 @@ export default function TodoApp({ userId, username, onSignOut }: TodoAppProps) {
     (message: string) => {
       voiceTargetRef.current = "new";
       setRecordingRowId(null);
-      showNotice({ kind: "error", text: message });
+      showNotice(
+        { kind: "error", text: message },
+        message === MICROPHONE_BLOCKED_MESSAGE ? 9000 : 4000,
+      );
     },
     [showNotice],
   );
@@ -457,6 +462,8 @@ export default function TodoApp({ userId, username, onSignOut }: TodoAppProps) {
         isProcessing={isProcessing}
         onClick={handleVoiceToggle}
       />
+
+      <GuideWidget />
     </div>
   );
 }

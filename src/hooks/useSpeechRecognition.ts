@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import {
+  isMicrophoneDeniedError,
+  MICROPHONE_BLOCKED_MESSAGE,
+  MICROPHONE_ERROR_MESSAGE,
+} from "@/lib/microphone";
+
 interface UseSpeechRecognitionOptions {
   lang?: string;
   onResult?: (transcript: string, alternatives: string[]) => void;
@@ -19,7 +25,7 @@ interface UseSpeechRecognitionReturn {
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-  "not-allowed": "Bạn cần cho phép truy cập micro để dùng tính năng này.",
+  "not-allowed": MICROPHONE_BLOCKED_MESSAGE,
   "service-not-allowed": "Trình duyệt chưa được cấp quyền dùng micro.",
   "audio-capture": "Không tìm thấy micro trên thiết bị.",
   "no-speech": "Không nghe thấy giọng nói, vui lòng thử lại.",
@@ -176,8 +182,15 @@ export function useSpeechRecognition(
 
     try {
       recognition.start();
-    } catch {
-      // start() throws if the engine is already running; ignore.
+    } catch (error) {
+      // Some browsers reject synchronously (e.g. blocked permission) instead
+      // of firing onerror, so surface it and let the user try again.
+      setIsListening(false);
+      const message = isMicrophoneDeniedError(error)
+        ? MICROPHONE_BLOCKED_MESSAGE
+        : MICROPHONE_ERROR_MESSAGE;
+      setError(message);
+      onErrorRef.current?.(message);
     }
   }, [dispose, lang]);
 

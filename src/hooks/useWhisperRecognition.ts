@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import {
+  getMicrophonePermissionState,
+  isMicrophoneDeniedError,
+  MICROPHONE_BLOCKED_MESSAGE,
+  MICROPHONE_ERROR_MESSAGE,
+} from "@/lib/microphone";
 import { supabase } from "@/lib/supabase";
 
 interface UseWhisperRecognitionOptions {
@@ -154,9 +160,21 @@ export function useWhisperRecognition({
 
       recorder.start();
       setIsListening(true);
-    } catch {
+    } catch (error) {
       setIsListening(false);
-      onErrorRef.current?.("Không truy cập được micro. Vui lòng kiểm tra quyền.");
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      recorderRef.current = null;
+
+      // If the mic is blocked, browsers reject silently and never prompt
+      // again. Tell the user how to re-enable it instead of failing quietly.
+      const denied =
+        isMicrophoneDeniedError(error) ||
+        (await getMicrophonePermissionState()) === "denied";
+
+      onErrorRef.current?.(
+        denied ? MICROPHONE_BLOCKED_MESSAGE : MICROPHONE_ERROR_MESSAGE,
+      );
     }
   }, [isSupported, transcribe]);
 
