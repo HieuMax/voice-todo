@@ -84,11 +84,34 @@ Bỏ trống các biến này nếu chỉ muốn chạy thử nhanh (chế độ
 
 Tài khoản đã đăng ký không cần dùng email thật; không cần bật/tắt xác nhận email.
 
+### Giữ đăng nhập (không phải đăng nhập lại)
+
+Phiên đăng nhập được lưu trong trình duyệt và tự gia hạn, nên người dùng ở lại
+đăng nhập cho tới khi bấm đăng xuất. Trên **điện thoại**, nếu vẫn bị đăng xuất
+sau một thời gian, kiểm tra:
+
+1. Supabase → **Authentication → Sessions**: tắt (đặt `0`) các mục
+   **Inactivity timeout**, **Time-box user sessions** và **Single session per user**.
+   Bật các mục này sẽ tự động kết thúc phiên.
+2. Supabase → **Authentication → Settings**: giữ **JWT expiry** ở mức mặc định
+   (3600 giây); refresh token không hết hạn nên không cần tăng.
+3. Project Free tier sẽ bị **tạm dừng sau ~7 ngày không hoạt động** — khi đó mọi
+   phiên bị mất. Nên dùng thường xuyên hoặc nâng cấp gói.
+4. Trên **iOS Safari**, bộ nhớ do JavaScript ghi (nơi lưu phiên) có thể bị xóa sau
+   **7 ngày không tương tác**. Cài app ra màn hình chính (Add to Home Screen) hoặc
+   mở app ít nhất mỗi tuần để phiên được gia hạn.
+
 ## Triển khai
 
 Đẩy mã nguồn lên GitHub, import vào Vercel và thêm ba biến môi trường
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY` trong dashboard.
+
+Nếu muốn nhận thông báo Discord khi có **người dùng mới đăng ký**, **phản hồi
+mới** hoặc **lỗi** (lỗi máy chủ / lỗi trình duyệt), tạo webhook (Server Settings →
+Integrations → Webhooks) và thêm biến `DISCORD_WEBHOOK_URL`. Để trống thì tính
+năng này tắt. Báo lỗi được chống spam (tối đa ~1 tin/giây máy chủ, và cùng một
+lỗi chỉ gửi trong khoảng 1 giờ).
 
 ## Cấu trúc
 

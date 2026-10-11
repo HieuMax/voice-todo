@@ -400,15 +400,19 @@ export default function TodoApp({ userId, username, onSignOut }: TodoAppProps) {
       {notice && (
         <div
           role="status"
-          className={`mx-5 mt-4 rounded-xl px-3 py-2 text-sm ${
-            notice.kind === "error"
-              ? "bg-rose-50 text-rose-600"
-              : notice.kind === "success"
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-slate-100 text-slate-600"
-          }`}
+          className="pointer-events-none fixed inset-x-0 top-[max(1rem,env(safe-area-inset-top))] z-30 flex justify-center px-5"
         >
-          {notice.text}
+          <div
+            className={`animate-[toast-in_0.2s_ease-out] max-w-md rounded-xl px-3.5 py-2 text-sm font-medium text-white shadow-lg ring-1 ring-black/5 ${
+              notice.kind === "error"
+                ? "bg-rose-600"
+                : notice.kind === "success"
+                  ? "bg-emerald-600"
+                  : "bg-slate-800"
+            }`}
+          >
+            {notice.text}
+          </div>
         </div>
       )}
 

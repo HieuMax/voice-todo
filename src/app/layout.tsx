@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 
+import ClientErrors from "@/components/ClientErrors";
+import FeedbackWidget from "@/components/FeedbackWidget";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -43,6 +46,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="vi" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full bg-slate-50 font-sans text-slate-900">
         {children}
+        <FeedbackWidget />
+        <ClientErrors />
       </body>
     </html>
   );

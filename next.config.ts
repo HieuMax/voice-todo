@@ -14,17 +14,28 @@ function supabaseConnectSources(): string[] {
   }
 }
 
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+const turnstileEnabled = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "form-action 'self'",
   "frame-ancestors 'none'",
+  `frame-src 'self'${turnstileEnabled ? ` ${TURNSTILE_ORIGIN}` : ""}`,
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  ["connect-src 'self'", ...supabaseConnectSources(), ...(isDev ? ["ws:", "wss:"] : [])].join(" "),
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${
+    turnstileEnabled ? ` ${TURNSTILE_ORIGIN}` : ""
+  }`,
+  [
+    "connect-src 'self'",
+    ...supabaseConnectSources(),
+    ...(turnstileEnabled ? [TURNSTILE_ORIGIN] : []),
+    ...(isDev ? ["ws:", "wss:"] : []),
+  ].join(" "),
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
   "manifest-src 'self'",

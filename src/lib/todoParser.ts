@@ -6,6 +6,23 @@ const PERIOD_SRC = "sáng|trưa|chiều|tối|đêm";
 const DAY_SRC = "hôm nay|hôm qua|hôm kia|ngày mai|ngày mốt|nay|mai|mốt";
 
 /**
+ * Standalone words/phrases that mark the start of a new task, e.g.
+ * "new mua sữa", "tiep theo đi chợ". They act as task boundaries (like the
+ * "công việc là" prefix): stripped from task text and used to split a
+ * continuous transcript into several tasks.
+ */
+const NEW_TASK_MARKERS = [
+  "tiếp theo",
+  "tiếp đến",
+  "tiep theo",
+  "tiep den",
+  "continue",
+  "new",
+  "ok",
+];
+const NEW_TASK_SRC = `(?:${NEW_TASK_MARKERS.join("|")})`;
+
+/**
  * Date/period/connector words that may wrap the time expression itself
  * ("lúc 8 giờ", "8 giờ sáng mai"). They are consumed together with the time so
  * we never strip them from the task body.
@@ -33,7 +50,7 @@ const PERIOD_WORDS: Record<string, Period> = {
  * like "cần câu", "bữa tối" or "hoa mai" survive.
  */
 const LEADING_PATTERN = new RegExp(
-  `^(?:\\s*(?:${DAY_SRC}|${PERIOD_SRC}|nhắc tôi|nhắc mình|nhắc giúp tôi|nhắc|nhớ giúp|nhớ|cần phải làm|cần làm|cần phải|cần|hãy|giúp tôi|giúp|cho tôi)\\s*)+`,
+  `^(?:\\s*(?:${DAY_SRC}|${PERIOD_SRC}|${NEW_TASK_SRC}|nhắc tôi|nhắc mình|nhắc giúp tôi|nhắc|nhớ giúp|nhớ|cần phải làm|cần làm|cần phải|cần|hãy|giúp tôi|giúp|cho tôi)\\s*)+`,
   "i",
 );
 
@@ -271,6 +288,17 @@ const TASK_PREFIX_TEST = new RegExp(`\\b${TASK_PREFIX_SRC}`, "i");
 const TASK_PREFIX_SPLIT = new RegExp(`\\s*\\b${TASK_PREFIX_SRC}\\s*`, "gi");
 const TASK_PREFIX_LEADING = new RegExp(`^\\s*\\b${TASK_PREFIX_SRC}\\s*`, "i");
 
+/**
+ * Detects a standalone "new task" marker and rewrites it to the canonical
+ * "việc là" prefix so the existing split/strip logic applies unchanged.
+ */
+const NEW_TASK_TEST = new RegExp(`(?:^|[\\s,.;:!?])${NEW_TASK_SRC}(?=[\\s,.;:!?]|$)`, "i");
+const NEW_TASK_SPLIT = new RegExp(`(?:^|[\\s,.;:!?])${NEW_TASK_SRC}(?=[\\s,.;:!?]|$)`, "gi");
+
+function canonicalizeTaskMarkers(text: string): string {
+  return text.replace(NEW_TASK_SPLIT, " việc là ");
+}
+
 export interface ParsedVoiceTask {
   raw: string;
   task: string;
@@ -278,11 +306,13 @@ export interface ParsedVoiceTask {
 }
 
 export function hasTaskPrefix(raw: string): boolean {
-  return TASK_PREFIX_TEST.test(normalizeText(raw));
+  const text = normalizeText(raw);
+  return TASK_PREFIX_TEST.test(text) || NEW_TASK_TEST.test(text);
 }
 
 export function stripTaskPrefix(raw: string): string {
-  return normalizeText(raw).replace(TASK_PREFIX_LEADING, "").trim();
+  const text = canonicalizeTaskMarkers(normalizeText(raw));
+  return text.replace(TASK_PREFIX_LEADING, "").trim();
 }
 
 /**
@@ -290,7 +320,7 @@ export function stripTaskPrefix(raw: string): string {
  * prefix, then parse each segment (task + optional time).
  */
 export function splitVoiceTasks(raw: string): ParsedVoiceTask[] {
-  const text = normalizeText(raw);
+  const text = canonicalizeTaskMarkers(normalizeText(raw));
   if (!text) return [];
 
   const segments = text

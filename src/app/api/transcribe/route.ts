@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const limit = rateLimit(`transcribe:${user.id}`, RATE_LIMIT, RATE_WINDOW_MS);
+  const limit = await rateLimit(`transcribe:${user.id}`, RATE_LIMIT, RATE_WINDOW_MS);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Bạn thao tác quá nhanh, vui lòng thử lại sau." },

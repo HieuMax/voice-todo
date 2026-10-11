@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getClientIp } from "@/lib/apiAuth";
+import { notifyDiscord } from "@/lib/discord";
 import { rateLimit } from "@/lib/rateLimit";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   const ip = getClientIp(request);
-  const limit = rateLimit(`register:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
+  const limit = await rateLimit(`register:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Bạn đã tạo quá nhiều tài khoản. Vui lòng thử lại sau." },
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
 
   const normalized = normalizeUsername(username);
 
-  const { error } = await supabaseAdmin.auth.admin.createUser({
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email: usernameToEmail(normalized),
     password,
     email_confirm: true,
@@ -76,6 +77,16 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  await notifyDiscord({
+    title: "Người dùng mới đăng ký",
+    color: 0x6366f1,
+    fields: [
+      { name: "Tên đăng nhập", value: normalized, inline: true },
+      { name: "User ID", value: data.user?.id ?? "không rõ", inline: true },
+      { name: "IP", value: ip, inline: true },
+    ],
+  });
 
   return NextResponse.json({ ok: true });
 }
